@@ -1,10 +1,17 @@
 import { useState } from "react";
+import type { CSSProperties, KeyboardEvent } from "react";
 
 // URL da API vinda do arquivo .env (VITE_API_URL=https://sua-api.onrender.com)
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env.VITE_API_URL as string;
+
+// Tipagem da resposta da API
+interface DownloadResponse {
+  mensagem: string;
+  arquivo: string;
+}
 
 // Extrai o ID do vídeo do YouTube a partir da URL
-function extractVideoId(url) {
+function extractVideoId(url: string): string | null {
   const match = url.match(
     /(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{11})/
   );
@@ -12,17 +19,17 @@ function extractVideoId(url) {
 }
 
 export default function App() {
-  const [url, setUrl] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState(null);
+  const [url, setUrl] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
+  const [result, setResult] = useState<DownloadResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const videoId = extractVideoId(url);
   const thumbnailUrl = videoId
     ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
     : null;
 
-  async function handleDownload() {
+  async function handleDownload(): Promise<void> {
     if (!url.trim()) return;
 
     setLoading(true);
@@ -36,21 +43,25 @@ export default function App() {
         body: JSON.stringify({ url }),
       });
 
-      const data = await response.json();
+      const data: DownloadResponse & { detail?: string } = await response.json();
 
       if (!response.ok) {
         throw new Error(data.detail || "Erro ao processar o download.");
       }
 
       setResult(data);
-    } catch (err) {
-      setError(err.message || "Não foi possível conectar à API.");
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Não foi possível conectar à API.");
+      }
     } finally {
       setLoading(false);
     }
   }
 
-  function handleKeyDown(e) {
+  function handleKeyDown(e: KeyboardEvent<HTMLInputElement>): void {
     if (e.key === "Enter") handleDownload();
   }
 
@@ -98,7 +109,9 @@ export default function App() {
               src={thumbnailUrl}
               alt="Thumbnail do vídeo"
               style={styles.thumbnail}
-              onError={(e) => (e.target.style.display = "none")}
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = "none";
+              }}
             />
             <p style={styles.previewLabel}>Prévia do vídeo</p>
           </div>
@@ -130,9 +143,9 @@ export default function App() {
 }
 
 // ---------------------------------------------------------------------------
-// Estilos
+// Estilos tipados como CSSProperties para compatibilidade com TypeScript
 // ---------------------------------------------------------------------------
-const styles = {
+const styles: Record<string, CSSProperties> = {
   page: {
     minHeight: "100vh",
     display: "flex",
@@ -190,7 +203,6 @@ const styles = {
     fontFamily: "sans-serif",
     color: "#1a1a1a",
     background: "#fafafa",
-    transition: "border-color 0.2s",
   },
   button: {
     padding: "12px 22px",
@@ -206,7 +218,6 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     minWidth: "80px",
-    transition: "opacity 0.2s",
   },
   buttonDisabled: {
     opacity: 0.5,
@@ -218,7 +229,6 @@ const styles = {
     border: "2px solid rgba(255,255,255,0.4)",
     borderTopColor: "#fff",
     borderRadius: "50%",
-    animation: "spin 0.7s linear infinite",
     display: "inline-block",
   },
   preview: {
